@@ -1,3 +1,5 @@
+#======INICIO======
+
 # Instalar pacotes necessários (caso não estejam instalados)
 install.packages(c("readxl", "dplyr", "ggplot2", "corrplot"))
 
@@ -7,11 +9,24 @@ library(dplyr)
 library(ggplot2)
 library(corrplot)
 
+#======LEITURA======
+
 # Ler o arquivo
 dados_bruto <- read_excel('Documentos/github/Trabalho-01-Aprendizado-de-M-quina-e-Reconhecimento-de-Padr-es/dados/DataSet_18_10_2023-Depurado.xlsx')
 
 # Selecionar as colunas desejadas (as primeiras 26 colunas)
 dados <- dados_bruto[, 1:26]
+
+#ver todas as variáveis
+summary(dados)
+# ver a dispersão em cada variável
+desv_p <- lapply(dados[,1:26], sd)
+desv_p
+#boxplot
+ggplot(dados, aes(x = has_scholarship, y = dropout, group = cut(age, breaks = 5))) + 
+  geom_boxplot() #teste para ver se funciona
+
+#======TRANSFORMAÇÃO======
 
 #Evitar NAs
 dados$dropout <- ifelse(dados$dropout == "True", 1, ifelse(dados$dropout == "False", 0, NA))
@@ -19,18 +34,36 @@ dados$has_scholarship <- ifelse(dados$has_scholarship == "True", 1,
                                 ifelse(dados$has_scholarship == "False", 0, NA))
 dados$moved_student <- ifelse(dados$moved_student == "True", 1, ifelse(dados$moved_student == "False", 0, NA))
 
-
 # Transformar dados para numéricos:
 dados$dropout <- as.integer(dados$dropout)  # 0 para falso e 1 para verdadeiro
 dados$has_scholarship <- as.integer(dados$has_scholarship)
 dados$working_student <- as.integer(dados$working_student)
 dados$moved_student <- as.integer(dados$moved_student)
 
+#======VISUALIZAÇÃO======
+
+#ver variáveis após a transformação
+summary(dados)
+# ver a dispersão em cada variável após a transformação
+desv_p <- lapply(dados[,1:26], sd)
+desv_p
+#boxplot individual após a transformação
+ggplot(dados, aes(x = has_scholarship, y = dropout, group = cut(age, breaks = 5))) + 
+  geom_boxplot()
+ggplot(dados, aes(x = moved_student, y = dropout, group = cut(age, breaks = 5))) + 
+  geom_boxplot()
+ggplot(dados, aes(x = working_student, y = dropout, group = cut(age, breaks = 5))) + 
+  geom_boxplot()
+
 #ver dados
 View(dados)
 
+#======SELEÇÃO======
+
 # Selecionar todas as colunas numéricas:
 df_numeros <- dados %>% select(where(is.numeric))
+
+#======MEDIDAS======
 
 # Montar a matriz de correlação
 matrix_correlacao <- cor(df_numeros)
@@ -47,12 +80,11 @@ summary_by_dropout <- dados %>%
     min_age = min(age, na.rm = TRUE),
     max_age = max(age, na.rm = TRUE),
     # More numeric columns
-    birth_date_summary = list(summary(birth_date)),
+    num_registrations_summary = list(summary(num_registrations)),
     .groups = "drop"
   )
 
 # Mostrar a matriz de correlação:
-# Clear the current plot window
 plot.new()
 dev.off()
 
@@ -60,7 +92,6 @@ corrplot(matrix_correlacao, method = "color", type = "upper", tl.col = "black", 
 title('Matriz de Correlação')
 
 # Calcular medidas de Posição (Média, Mediana e Moda) por grupo de 'dropout'
-
 medidas_posicao <- dados %>%
   group_by(dropout) %>%
   summarise(
@@ -68,7 +99,7 @@ medidas_posicao <- dados %>%
     mediana_age = median(age, na.rm = TRUE)
   )
 
-# Função para calcular a moda
+# Calcular a moda
 get_mode <- function(v) {
   uniqv <- unique(v)
   uniqv[which.max(tabulate(match(v, uniqv)))]
