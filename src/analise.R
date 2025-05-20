@@ -47,13 +47,6 @@ summary(dados)
 # ver a dispersão em cada variável após a transformação
 desv_p <- lapply(dados[,1:26], sd)
 desv_p
-#boxplot individual após a transformação
-ggplot(dados, aes(x = has_scholarship, y = dropout, group = cut(age, breaks = 5))) + 
-  geom_boxplot()
-ggplot(dados, aes(x = moved_student, y = dropout, group = cut(age, breaks = 5))) + 
-  geom_boxplot()
-ggplot(dados, aes(x = working_student, y = dropout, group = cut(age, breaks = 5))) + 
-  geom_boxplot()
 
 #ver dados
 View(dados)
@@ -92,11 +85,18 @@ corrplot(matrix_correlacao, method = "color", type = "upper", tl.col = "black", 
 title('Matriz de Correlação')
 
 # Calcular medidas de Posição (Média, Mediana e Moda) por grupo de 'dropout'
-medidas_posicao <- dados %>%
+medidas_posicao_age <- dados %>%
   group_by(dropout) %>%
   summarise(
     media_age = mean(age, na.rm = TRUE),
     mediana_age = median(age, na.rm = TRUE)
+  )
+
+medidas_posicao_years_since_registration <- dados %>%
+  group_by(dropout) %>%
+  summarise(
+    media_years_since_registrations = mean(years_since_registration, na.rm = TRUE),
+    mediana_years_since_registration = median(years_since_registration, na.rm = TRUE)
   )
 
 # Calcular a moda
@@ -111,14 +111,22 @@ moda_age_dropout <- dados %>%
     moda_age = get_mode(age)
   )
 
-medidas_posicao <- left_join(medidas_posicao, moda_age_dropout, by = "dropout")
+moda_years_since_registration_dropout <- dados %>%
+  group_by(dropout) %>%
+  summarise(
+    moda_years_since_registration = get_mode(years_since_registration)
+  )
+
+medidas_posicao_age <- left_join(medidas_posicao_age, moda_age_dropout , by = "dropout")
+medidas_posicao_years_since_resgistration <- left_join(medidas_posicao_years_since_registration, moda_years_since_registration_dropout,  by = "dropout")
 
 print("Medidas de Posição por Dropout:")
-print(medidas_posicao)
+print(medidas_posicao_age)
+print(medidas_posicao_years_since_registration)
 
 # Calcular medidas de Dispersão por grupo de 'dropout'
 
-medidas_dispersao <- dados %>%
+medidas_dispersao_age <- dados %>%
   group_by(dropout) %>%
   summarise(
     amplitude_age = max(age, na.rm = TRUE) - min(age, na.rm = TRUE),
@@ -126,40 +134,60 @@ medidas_dispersao <- dados %>%
     desvio_padrao_age = sd(age, na.rm = TRUE)
   )
 
+dados$total_ects <- as.numeric(as.character(dados$total_ects))
+
+medidas_dispersao_ects <- dados %>%
+  group_by(dropout) %>%
+  summarise(
+    amplitude_ects = max(total_ects) - min(total_ects),
+    variancia_ects = var(total_ects),
+    desvio_padrao_ects = sd(total_ects)
+  )
+
 # Coeficiente de Variação de Pearson (CV)
-coeficiente_variacao <- dados %>%
+coeficiente_variacao_age <- dados %>%
   group_by(dropout) %>%
   summarise(
     cv_age = sd(age, na.rm = TRUE) / mean(age, na.rm = TRUE)
   )
 
-medidas_dispersao <- left_join(medidas_dispersao, coeficiente_variacao, by = "dropout")
+coeficiente_variacao_ects <- dados %>%
+  group_by(dropout) %>%
+  summarise(
+    cv_ects = sd(total_ects, na.rm = TRUE) / mean(total_ects, na.rm = TRUE)
+  )
+
+medidas_dispersao_age <- left_join(medidas_dispersao_age, coeficiente_variacao_age, by = "dropout")
+medidas_dispersao_ects <- left_join(medidas_dispersao_ects, coeficiente_variacao_ects, by = "dropout")
 
 print("\nMedidas de Dispersão por Dropout:")
-print(medidas_dispersao)
+print(medidas_dispersao_age)
+print(medidas_dispersao_ects)
 
-# Calcular Frequência Relativa da variável 'dropout'
+# Calcular Frequência Relativa da variável 'total_ects'
 
-frequencia_relativa_dropout <- dados %>%
-  group_by(dropout) %>%
+frequencia_relativa_ects <- dados %>%
+  group_by(total_ects) %>%
   summarise(
     n = n()
   ) %>%
   mutate(
     frequencia_relativa = n / sum(n)
   ) %>%
-  select(dropout, frequencia_relativa)
+  select(total_ects, frequencia_relativa)
 
-print("\nFrequência Relativa de Dropout:")
-print(frequencia_relativa_dropout)
+print("\nFrequência Relativa de ects:")
+print(frequencia_relativa_ects)
 
 # Calcular a matriz de correlação (já feito anteriormente)
 print("\nMatriz de Correlação (incluindo correlação com 'dropout'):")
 print(dropout_correlacao)
 
+View(dados)
+
 # Análise de Similaridade (Distância Euclidiana)
 
-df_para_distancia <- df_numeros %>% select(age, dropout, moved_student, working_student, has_scholarship)
+df_para_distancia <- df_numeros %>% select(age, dropout, moved_student, working_student, has_scholarship, valid_final_grade, num_registrations, num_registrations_course_conferent_degree, registrations, repetitions)
 
 # Remover linhas com NA para o cálculo da distância
 df_para_distancia <- na.omit(df_para_distancia)
